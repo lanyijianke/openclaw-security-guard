@@ -47,6 +47,26 @@ fi
 SKILL_DST="$OC/workspace/skills/security-guard"
 AGENTS_FILE="$OC/workspace/AGENTS.md"
 
+# 安全校验：子路径符号链接检测（防止写入被重定向到 OC 外部）
+validate_path_inside_oc() {
+  local TARGET="$1"
+  local LABEL="$2"
+  if command -v realpath >/dev/null 2>&1 && [ -e "$TARGET" ]; then
+    local REAL_TARGET
+    REAL_TARGET=$(realpath "$TARGET" 2>/dev/null || echo "$TARGET")
+    case "$REAL_TARGET" in
+      "$OC"/*)  ;; # 安全：真实路径在 OC 内
+      *)
+        echo -e "${RED}❌ 安全中断: $LABEL 的真实路径指向 OC 外部${NC}"
+        echo -e "  路径: $TARGET"
+        echo -e "  解析: $REAL_TARGET"
+        echo -e "  预期: $OC/ 内部"
+        exit 1
+        ;;
+    esac
+  fi
+}
+
 echo -e "${CYAN}📍 OpenClaw 目录: ${NC}$OC"
 echo -e "${CYAN}📦 Skill 来源:    ${NC}$SKILL_SRC"
 echo -e "${CYAN}📂 安装目标:      ${NC}$SKILL_DST"
@@ -98,7 +118,10 @@ echo -e "${BOLD}── 步骤 1/2: 安装 Skill ──${NC}"
 echo ""
 
 mkdir -p "$(dirname "$SKILL_DST")"
+# 子路径符号链接校验：确保父目录未被重定向
+validate_path_inside_oc "$(dirname "$SKILL_DST")" "Skill 父目录"
 cp -r "$SKILL_SRC" "$SKILL_DST"
+validate_path_inside_oc "$SKILL_DST" "Skill 安装目标"
 chmod +x "$SKILL_DST/scripts/"*.sh 2>/dev/null || true
 
 echo -e "   ${GREEN}✅ Skill 已安装到 $SKILL_DST${NC}"
@@ -137,6 +160,8 @@ else
 
   if [[ $REPLY =~ ^[Yy]$ ]]; then
     mkdir -p "$(dirname "$AGENTS_FILE")"
+    # 子路径符号链接校验：确保 AGENTS.md 父目录未被重定向
+    validate_path_inside_oc "$(dirname "$AGENTS_FILE")" "AGENTS.md 父目录"
 
     cat >> "$AGENTS_FILE" << 'RULES'
 
@@ -224,8 +249,10 @@ echo ""
 echo -e "  本次安装做了以下操作："
 echo -e "  ${GREEN}✅${NC} Skill 安装到 ${CYAN}$SKILL_DST${NC}"
 
-if [ -f "$AGENTS_FILE" ] && grep -q "$MARKER" "$AGENTS_FILE" 2>/dev/null; then
-  echo -e "  ${GREEN}✅${NC} 安全规则注入到 ${CYAN}$AGENTS_FILE${NC}"
+if [ -f "$AGENTS_FILE" ] && grep -q "$MARKER" "$AGENTS_FILE" 2>/dev/null && grep -q "$MARKER_END" "$AGENTS_FILE" 2>/dev/null; then
+  echo -e "  ${GREEN}✅${NC} 安全规则已完整注入到 ${CYAN}$AGENTS_FILE${NC}"
+elif [ -f "$AGENTS_FILE" ] && grep -q "$MARKER" "$AGENTS_FILE" 2>/dev/null; then
+  echo -e "  ${YELLOW}⚠️${NC}  安全规则不完整（缺少结束标记），请检查 ${CYAN}$AGENTS_FILE${NC}"
 fi
 
 echo ""

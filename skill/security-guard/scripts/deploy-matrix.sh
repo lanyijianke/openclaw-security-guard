@@ -226,12 +226,12 @@ do_status() {
     warn "巡检脚本未部署"
   fi
 
-  # 5) Cron（精确匹配任务名，防止近似名伪造）
+  # 5) Cron（解析任务名列，防止其他字段误匹配）
   if command -v openclaw >/dev/null 2>&1; then
     CRON_OUTPUT=$(openclaw cron list 2>/dev/null || true)
-    if echo "$CRON_OUTPUT" | grep -qw "nightly-security-audit"; then
+    # 提取首列（任务名）进行精确匹配
+    if echo "$CRON_OUTPUT" | awk '{print $1}' | grep -qx "nightly-security-audit"; then
       ok "巡检 Cron Job 已注册"
-      # 额外展示任务信息供人工确认
       echo "$CRON_OUTPUT" | grep "nightly-security-audit" | while read -r LINE; do
         info "  $LINE"
       done
