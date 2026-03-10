@@ -120,7 +120,9 @@ do_permissions() {
   echo ""
 
   for F in "$OC/openclaw.json" "$OC/devices/paired.json"; do
-    if [ -f "$F" ]; then
+    if [ -L "$F" ]; then
+      fail "$(basename "$F") 是符号链接 -> $(readlink "$F" 2>/dev/null || echo '未知')，已跳过（防止误改外部文件）"
+    elif [ -f "$F" ]; then
       PERM=$(file_perm "$F")
       if [ "$PERM" = "600" ]; then
         ok "$(basename "$F") 权限已为 600"
@@ -144,6 +146,12 @@ do_baseline() {
   echo ""
 
   BASELINE="$OC/.config-baseline.sha256"
+
+  if [ -L "$OC/openclaw.json" ]; then
+    fail "openclaw.json 是符号链接，拒绝生成基线（防止对错误对象校验）"
+    echo ""
+    return 1
+  fi
 
   if [ -f "$OC/openclaw.json" ]; then
     if [ -f "$BASELINE" ]; then

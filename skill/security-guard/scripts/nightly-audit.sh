@@ -15,11 +15,25 @@ umask 077
 OS_TYPE="$(uname -s)"
 OC="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
 
-# 报告目录：优先用 mktemp 防符号链接劫持，回退到固定路径 + 权限加固
+# 安全校验：解析真实路径，防止符号链接重定向
+if command -v realpath >/dev/null 2>&1; then
+  OC_REAL=$(realpath "$OC" 2>/dev/null || echo "$OC")
+  if [ "$OC" != "$OC_REAL" ]; then
+    echo "WARNING: OC path contains symlink: $OC -> $OC_REAL" >&2
+    OC="$OC_REAL"
+  fi
+fi
+
+# 报告目录：优先用 mktemp 防符号链接劫持
 if command -v mktemp >/dev/null 2>&1; then
   REPORT_DIR=$(mktemp -d "${TMPDIR:-/tmp}/openclaw-audit-XXXXXXXXXX")
 else
   REPORT_DIR="/tmp/openclaw/security-reports"
+  # 固定路径回退：检查 symlink 劫持
+  if [ -L "$REPORT_DIR" ]; then
+    echo "FATAL: $REPORT_DIR is a symlink — possible hijack, aborting" >&2
+    exit 1
+  fi
   mkdir -p "$REPORT_DIR"
   chmod 700 "$REPORT_DIR"
 fi
@@ -262,7 +276,10 @@ BASE_HASH="$HASH_DIR/skill-mcp-baseline.sha256"
 : > "$CUR_HASH"
 for D in "$SKILL_DIR" "$MCP_DIR"; do
   if [ -d "$D" ]; then
-    find "$D" -type f -print0 2>/dev/null | sort -z | xargs -0 hash_cmd 2>/dev/null >> "$CUR_HASH" || true
+    # 用 while 循环替代 xargs（hash_cmd 是 shell 函数，xargs 无法调用）
+    find "$D" -type f -print0 2>/dev/null | sort -z | while IFS= read -r -d '' FILE; do
+      hash_cmd "$FILE" >> "$CUR_HASH" 2>/dev/null || true
+    done
   fi
 done
 

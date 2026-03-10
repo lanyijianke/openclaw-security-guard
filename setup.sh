@@ -162,6 +162,13 @@ else
     mkdir -p "$(dirname "$AGENTS_FILE")"
     # 子路径符号链接校验：确保 AGENTS.md 父目录未被重定向
     validate_path_inside_oc "$(dirname "$AGENTS_FILE")" "AGENTS.md 父目录"
+    # 文件级 symlink 校验：阻止 AGENTS.md 本身被链到外部文件
+    if [ -L "$AGENTS_FILE" ]; then
+      echo -e "${RED}❌ 安全中断: $AGENTS_FILE 是符号链接，可能被劫持${NC}"
+      echo -e "  链接目标: $(readlink "$AGENTS_FILE" 2>/dev/null || echo '未知')"
+      echo -e "  请删除该符号链接后重新运行"
+      exit 1
+    fi
 
     cat >> "$AGENTS_FILE" << 'RULES'
 
