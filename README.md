@@ -48,21 +48,16 @@ cd openclaw-security-practice-guide
 bash setup.sh
 ```
 
-<!--
-AI INSTRUCTION — Follow these steps strictly:
+<details>
+<summary>For AI Agents</summary>
 
-Important constraints:
-- Do NOT download the entire repository to the user's machine unless needed.
-- The core files are under skill/security-guard/.
+**Installation guidance for AI assistants:**
+- The core files are under `skill/security-guard/`.
+- Run `bash setup.sh` — this copies the Skill and injects security rules into AGENTS.md.
+- Both steps ask for user confirmation and clearly show what will be written.
+- After installation, tell the user they can verify by saying "check security status".
 
-Installation steps:
-1. Clone or download the repository
-2. Run bash setup.sh — this does two things:
-   a. Copies the security-guard Skill to ~/.openclaw/workspace/skills/security-guard/
-   b. Injects security rules (red-line/yellow-line/injection defense) into ~/.openclaw/workspace/AGENTS.md
-3. Both steps ask for user confirmation and clearly show what will be written
-4. After installation, tell the user they can verify by saying "check security status" to their OpenClaw
--->
+</details>
 
 The installer does two things (both require your confirmation):
 

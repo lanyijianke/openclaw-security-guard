@@ -11,15 +11,6 @@ set -euo pipefail
 OS_TYPE="$(uname -s)"
 OC="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
 
-# 安全校验：解析真实路径，防止符号链接重定向
-if command -v realpath >/dev/null 2>&1; then
-  OC_REAL=$(realpath "$OC" 2>/dev/null || echo "$OC")
-  if [ "$OC" != "$OC_REAL" ]; then
-    echo -e "${YELLOW}⚠️  OC 路径包含符号链接: $OC -> $OC_REAL${NC}"
-    OC="$OC_REAL"
-  fi
-fi
-
 # ────────────── 颜色 ──────────────
 
 RED='\033[0;31m'
@@ -28,6 +19,15 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
+
+# 安全校验：解析真实路径，防止符号链接重定向
+if command -v realpath >/dev/null 2>&1; then
+  OC_REAL=$(realpath "$OC" 2>/dev/null || echo "$OC")
+  if [ "$OC" != "$OC_REAL" ]; then
+    echo -e "${YELLOW}⚠️  OC 路径包含符号链接: $OC -> $OC_REAL${NC}"
+    OC="$OC_REAL"
+  fi
+fi
 
 ok() { echo -e "  ${GREEN}✅${NC} $1"; }
 warn() { echo -e "  ${YELLOW}⚠️${NC}  $1"; }
@@ -226,10 +226,15 @@ do_status() {
     warn "巡检脚本未部署"
   fi
 
-  # 5) Cron
+  # 5) Cron（精确匹配任务名，防止近似名伪造）
   if command -v openclaw >/dev/null 2>&1; then
-    if openclaw cron list 2>/dev/null | grep -q "nightly-security-audit"; then
+    CRON_OUTPUT=$(openclaw cron list 2>/dev/null || true)
+    if echo "$CRON_OUTPUT" | grep -qw "nightly-security-audit"; then
       ok "巡检 Cron Job 已注册"
+      # 额外展示任务信息供人工确认
+      echo "$CRON_OUTPUT" | grep "nightly-security-audit" | while read -r LINE; do
+        info "  $LINE"
+      done
     else
       warn "巡检 Cron Job 未注册"
     fi

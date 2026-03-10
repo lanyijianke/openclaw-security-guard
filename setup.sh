@@ -33,6 +33,17 @@ fi
 
 # ─── 定位 OpenClaw 状态目录 ──────────────────────────
 OC="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
+
+# 安全校验：解析真实路径，防止符号链接重定向
+if command -v realpath >/dev/null 2>&1; then
+  OC_REAL=$(realpath "$OC" 2>/dev/null || echo "$OC")
+  if [ "$OC" != "$OC_REAL" ]; then
+    echo -e "${YELLOW}⚠️  OC 路径包含符号链接: $OC -> $OC_REAL${NC}"
+    echo -e "${YELLOW}   将使用解析后的真实路径${NC}"
+    OC="$OC_REAL"
+  fi
+fi
+
 SKILL_DST="$OC/workspace/skills/security-guard"
 AGENTS_FILE="$OC/workspace/AGENTS.md"
 
@@ -101,11 +112,15 @@ echo ""
 
 # 安全规则标记（用于检测是否已注入）
 MARKER="<!-- security-guard-rules -->"
+MARKER_END="<!-- /security-guard-rules -->"
 
-# 检查是否已注入
-if [ -f "$AGENTS_FILE" ] && grep -q "$MARKER" "$AGENTS_FILE" 2>/dev/null; then
-  echo -e "   ${YELLOW}⚠️  AGENTS.md 中已包含安全规则，跳过注入${NC}"
+# 检查是否已注入（必须同时包含开始和结束标记才算完整）
+if [ -f "$AGENTS_FILE" ] && grep -q "$MARKER" "$AGENTS_FILE" 2>/dev/null && grep -q "$MARKER_END" "$AGENTS_FILE" 2>/dev/null; then
+  echo -e "   ${YELLOW}⚠️  AGENTS.md 中已包含完整安全规则，跳过注入${NC}"
   echo -e "   ${DIM}如需更新规则，请删除 AGENTS.md 中 security-guard 部分后重新运行${NC}"
+elif [ -f "$AGENTS_FILE" ] && grep -q "$MARKER" "$AGENTS_FILE" 2>/dev/null; then
+  echo -e "   ${RED}⚠️  AGENTS.md 包含开始标记但缺少结束标记，规则可能不完整${NC}"
+  echo -e "   ${DIM}建议先删除 AGENTS.md 中 security-guard 部分，再重新运行本脚本${NC}"
 else
   # 透明展示即将写入的内容
   echo -e "${DIM}   以下安全规则将被追加到 AGENTS.md:${NC}"
