@@ -1,4 +1,4 @@
-# 每晚巡检 — 13 项核心指标详解
+# 每晚巡检 — 12 项核心指标详解
 
 > Agent 在部署巡检脚本和解读巡检报告时参考本文件。
 
@@ -20,7 +20,6 @@
 | 10 | 环境变量 | gateway 进程 environ | 变量名在白名单内 | 异常凭证变量 |
 | 11 | DLP 扫描 | 正则扫描私钥/助记词 | 0 hits | 任何 hit |
 | 12 | Skill/MCP 基线 | 哈希清单 diff | 与基线一致 | 哈希变化 |
-| 13 | 灾备同步 | git commit + push | 推送成功 | 推送失败(warn) |
 
 ---
 
@@ -129,11 +128,6 @@ macOS 替代：`ps aux | grep openclaw-gateway`（信息有限）。
 
 基线文件：`$OC/security-baselines/skill-mcp-baseline.sha256`
 
-### 13. 大脑灾备自动同步
-
-在 `$OC/` 中执行 `git add . && git commit && git push`。
-
-**重要**：灾备推送失败不阻塞巡检报告输出，记录为 warn 并继续。
 
 ---
 
@@ -154,7 +148,6 @@ macOS 替代：`ps aux | grep openclaw-gateway`（信息有限）。
 10. 环境变量: ✅ 凭证变量在白名单内
 11. 凭证扫描: ✅ 未发现明文私钥或助记词
 12. Skill基线: ✅ 与上次基线一致
-13. 灾备备份: ✅ 已推送至远端仓库
 
 📝 详细战报已保存: /tmp/openclaw/security-reports/report-YYYY-MM-DD.txt
 ```

@@ -16,7 +16,7 @@ description: >
 ```
 事前 ─── 行为黑名单（红线/黄线） + Skill 安装安全审计
 事中 ─── 权限收窄 + 哈希基线 + 操作日志 + 业务风控
-事后 ─── 每晚自动巡检（13项全量汇报） + 大脑 Git 灾备
+事后 ─── 每晚自动巡检（12项全量汇报）
 ```
 
 ## Core Rules (不可违反)
@@ -110,15 +110,6 @@ openclaw cron add \
 sudo chattr +i $OC/workspace/scripts/nightly-audit.sh
 ```
 
-#### 2e) 灾备配置 (可选)
-
-询问用户是否需要 Git 灾备，如果需要：
-
-1. 在 `$OC/` 中初始化 git 仓库
-2. 生成 `.gitignore`（排除 `media/`、`logs/`、`completions/`、`canvas/`、`*.bak*`、`*.tmp`、`devices/*.tmp`）
-3. 设置远程仓库 URL（用户提供）
-4. 首次 commit + push
-
 ### Step 3: Skill/MCP 安装安检协议
 
 每次安装新 Skill/MCP 时，自动触发此流程：
@@ -137,7 +128,6 @@ sudo chattr +i $OC/workspace/scripts/nightly-audit.sh
 - 核心文件权限是否 600
 - 哈希基线是否存在且校验通过
 - 巡检 Cron 是否已注册
-- 灾备仓库是否已配置
 
 输出格式化的状态卡片。
 
@@ -166,7 +156,6 @@ sudo chattr +i $OC/workspace/scripts/nightly-audit.sh
 - 写入或修改 AGENTS.md
 - 修改文件权限 (chmod/chown)
 - 注册 Cron Job
-- 初始化 Git 仓库
 - 执行任何 `sudo` 命令
 - 安装或启用任何新工具
 

@@ -235,17 +235,6 @@ do_status() {
     fi
   fi
 
-  # 6) 灾备
-  if [ -d "$OC/.git" ]; then
-    if git -C "$OC" remote -v 2>/dev/null | grep -q "push"; then
-      ok "Git 灾备已配置"
-    else
-      warn "Git 仓库已初始化但无远端"
-    fi
-  else
-    info "Git 灾备未配置 (可选)"
-  fi
-
   echo ""
 }
 

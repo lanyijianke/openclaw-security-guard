@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Security Guard — 每晚全面安全巡检脚本 (跨平台版)
-# 基于 OpenClaw 极简安全实践指南 v2.7，覆盖 13 项核心指标
+# 基于 OpenClaw 极简安全实践指南 v2.7，覆盖 12 项核心指标
 # 支持 Linux 和 macOS，灾备失败不阻断巡检汇报
 
 set -euo pipefail
@@ -281,48 +281,7 @@ else
   SUMMARY+="12. Skill/MCP基线: ✅ 未发现skills/mcp目录文件\n"
 fi
 
-# ────────────── 13/13: 大脑灾备自动同步 ──────────────
 
-echo -e "\n[13/13] 大脑灾备 (Git Backup)" >> "$REPORT_FILE"
-BACKUP_STATUS=""
-if [ -d "$OC/.git" ]; then
-  # 安全校验：.gitignore 必须存在且包含关键排除规则
-  if [ ! -f "$OC/.gitignore" ]; then
-    echo "ABORTED: $OC/.gitignore not found — refusing to auto-backup without exclusion rules" >> "$REPORT_FILE"
-    BACKUP_STATUS="no_gitignore"
-  elif ! grep -qE '(openclaw\.json|paired\.json|devices/)' "$OC/.gitignore" 2>/dev/null; then
-    echo "ABORTED: $OC/.gitignore missing critical exclusions (openclaw.json/paired.json) — refusing" >> "$REPORT_FILE"
-    BACKUP_STATUS="weak_gitignore"
-  else
-    # 使用 { } 而非 ( ) 以保留 BACKUP_STATUS 变量
-    cd "$OC" || { BACKUP_STATUS="fail"; }
-    if [ -z "$BACKUP_STATUS" ]; then
-      git add . >> "$REPORT_FILE" 2>&1 || true
-      if git diff --cached --quiet; then
-        echo "No staged changes" >> "$REPORT_FILE"
-        BACKUP_STATUS="skip"
-      else
-        if git commit -m "🛡️ Nightly brain backup ($DATE_STR)" >> "$REPORT_FILE" 2>&1 && git push origin main >> "$REPORT_FILE" 2>&1; then
-          BACKUP_STATUS="ok"
-        else
-          BACKUP_STATUS="fail"
-        fi
-      fi
-      cd - > /dev/null 2>&1 || true
-    fi
-  fi
-else
-  BACKUP_STATUS="nogit"
-fi
-
-case "$BACKUP_STATUS" in
-  ok)   SUMMARY+="13. 灾备备份: ✅ 已自动推送至远端仓库\n" ;;
-  skip) SUMMARY+="13. 灾备备份: ✅ 无新变更，跳过推送\n" ;;
-  nogit) append_warn "13. 灾备备份: ⚠️ 未初始化Git仓库，已跳过" ;;
-  no_gitignore) append_warn "13. 灾备备份: ❌ 缺少 .gitignore，已中止自动备份（防止推送凭证）" ;;
-  weak_gitignore) append_warn "13. 灾备备份: ❌ .gitignore 未排除关键敏感文件（openclaw.json/paired.json），已中止" ;;
-  *)    append_warn "13. 灾备备份: ⚠️ 推送失败（不影响本次巡检）" ;;
-esac
 
 # ────────────── 输出汇总 ──────────────
 
