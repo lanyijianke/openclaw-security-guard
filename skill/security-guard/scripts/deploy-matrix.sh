@@ -11,6 +11,15 @@ set -euo pipefail
 OS_TYPE="$(uname -s)"
 OC="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
 
+# 安全校验：解析真实路径，防止符号链接重定向
+if command -v realpath >/dev/null 2>&1; then
+  OC_REAL=$(realpath "$OC" 2>/dev/null || echo "$OC")
+  if [ "$OC" != "$OC_REAL" ]; then
+    echo -e "${YELLOW}⚠️  OC 路径包含符号链接: $OC -> $OC_REAL${NC}"
+    OC="$OC_REAL"
+  fi
+fi
+
 # ────────────── 颜色 ──────────────
 
 RED='\033[0;31m'
@@ -149,7 +158,7 @@ do_baseline() {
     else
       info "首次生成基线..."
       (cd "$OC" && hash_cmd openclaw.json > .config-baseline.sha256)
-      ok "基线已生成: $BASELINE"
+      warn "基线已生成: $BASELINE（请确认当前 openclaw.json 状态可信）"
     fi
   else
     fail "openclaw.json 不存在"
@@ -164,12 +173,16 @@ do_status() {
   header "📋 Security Guard — 安全状态报告"
   echo ""
 
-  # 1) AGENTS.md 红/黄线
+  # 1) AGENTS.md 红/黄线（使用官方标记而非模糊匹配）
   AGENTS_FILE="$OC/workspace/AGENTS.md"
-  if [ -f "$AGENTS_FILE" ] && grep -q "Security Guard" "$AGENTS_FILE" 2>/dev/null; then
-    ok "AGENTS.md 包含安全规则"
+  MARKER="<!-- security-guard-rules -->"
+  MARKER_END="<!-- /security-guard-rules -->"
+  if [ -f "$AGENTS_FILE" ] && grep -q "$MARKER" "$AGENTS_FILE" 2>/dev/null && grep -q "$MARKER_END" "$AGENTS_FILE" 2>/dev/null; then
+    ok "AGENTS.md 包含完整安全规则（开始/结束标记均存在）"
+  elif [ -f "$AGENTS_FILE" ] && grep -q "$MARKER" "$AGENTS_FILE" 2>/dev/null; then
+    warn "AGENTS.md 包含开始标记但缺少结束标记（规则可能不完整）"
   elif [ -f "$AGENTS_FILE" ]; then
-    warn "AGENTS.md 存在但未发现 Security Guard 规则"
+    warn "AGENTS.md 存在但未发现 Security Guard 规则标记"
   else
     fail "AGENTS.md 不存在"
   fi

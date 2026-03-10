@@ -150,7 +150,13 @@ else
   fi
 fi
 echo "Failed SSH attempts (recent): $FAILED_SSH" >> "$REPORT_FILE"
-SUMMARY+="6. SSH 安全: ✅ 近24h失败尝试 ${FAILED_SSH} 次\n"
+if [ "$FAILED_SSH" -gt 5 ]; then
+  append_warn "6. SSH 安全: ⚠️ 近24h失败尝试 ${FAILED_SSH} 次（超过阈值 5）"
+elif [ "$FAILED_SSH" -gt 0 ]; then
+  SUMMARY+="6. SSH 安全: ✅ 近24h失败尝试 ${FAILED_SSH} 次（在正常范围内）\n"
+else
+  SUMMARY+="6. SSH 安全: ✅ 近24h无失败尝试\n"
+fi
 
 # ────────────── 7/13: 关键文件完整性与权限 ──────────────
 
@@ -190,7 +196,13 @@ fi
 MEM_FILE="$OC/workspace/memory/$DATE_STR.md"
 MEM_COUNT=$(grep -i "sudo" "$MEM_FILE" 2>/dev/null | wc -l | xargs)
 echo "Sudo Logs(recent): $SUDO_COUNT, Memory Logs(today): $MEM_COUNT" >> "$REPORT_FILE"
-SUMMARY+="8. 黄线审计: ✅ sudo记录=$SUDO_COUNT, memory记录=$MEM_COUNT\n"
+if [ "$SUDO_COUNT" -gt 0 ] && [ "$MEM_COUNT" -eq 0 ]; then
+  append_warn "8. 黄线审计: ⚠️ 发现 ${SUDO_COUNT} 次 sudo 但 memory 无记录（可能存在未登记操作）"
+elif [ "$SUDO_COUNT" -ne "$MEM_COUNT" ]; then
+  append_warn "8. 黄线审计: ⚠️ sudo记录=${SUDO_COUNT} vs memory记录=${MEM_COUNT}（数量不一致）"
+else
+  SUMMARY+="8. 黄线审计: ✅ sudo记录=$SUDO_COUNT, memory记录=$MEM_COUNT（一致）\n"
+fi
 
 # ────────────── 9/13: 磁盘使用 ──────────────
 
@@ -263,7 +275,7 @@ if [ -s "$CUR_HASH" ]; then
     fi
   else
     cp "$CUR_HASH" "$BASE_HASH"
-    SUMMARY+="12. Skill/MCP基线: ✅ 首次生成基线完成\n"
+    append_warn "12. Skill/MCP基线: ⚠️ 首次生成基线（请确认当前 Skill/MCP 状态可信）"
   fi
 else
   SUMMARY+="12. Skill/MCP基线: ✅ 未发现skills/mcp目录文件\n"
@@ -274,10 +286,13 @@ fi
 echo -e "\n[13/13] 大脑灾备 (Git Backup)" >> "$REPORT_FILE"
 BACKUP_STATUS=""
 if [ -d "$OC/.git" ]; then
-  # 安全校验：必须存在 .gitignore 才允许自动备份，防止推送凭证
+  # 安全校验：.gitignore 必须存在且包含关键排除规则
   if [ ! -f "$OC/.gitignore" ]; then
     echo "ABORTED: $OC/.gitignore not found — refusing to auto-backup without exclusion rules" >> "$REPORT_FILE"
     BACKUP_STATUS="no_gitignore"
+  elif ! grep -qE '(openclaw\.json|paired\.json|devices/)' "$OC/.gitignore" 2>/dev/null; then
+    echo "ABORTED: $OC/.gitignore missing critical exclusions (openclaw.json/paired.json) — refusing" >> "$REPORT_FILE"
+    BACKUP_STATUS="weak_gitignore"
   else
     # 使用 { } 而非 ( ) 以保留 BACKUP_STATUS 变量
     cd "$OC" || { BACKUP_STATUS="fail"; }
@@ -305,6 +320,7 @@ case "$BACKUP_STATUS" in
   skip) SUMMARY+="13. 灾备备份: ✅ 无新变更，跳过推送\n" ;;
   nogit) append_warn "13. 灾备备份: ⚠️ 未初始化Git仓库，已跳过" ;;
   no_gitignore) append_warn "13. 灾备备份: ❌ 缺少 .gitignore，已中止自动备份（防止推送凭证）" ;;
+  weak_gitignore) append_warn "13. 灾备备份: ❌ .gitignore 未排除关键敏感文件（openclaw.json/paired.json），已中止" ;;
   *)    append_warn "13. 灾备备份: ⚠️ 推送失败（不影响本次巡检）" ;;
 esac
 
