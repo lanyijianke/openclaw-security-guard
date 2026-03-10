@@ -67,7 +67,16 @@ if [ -d "$SKILL_DST" ]; then
     echo "已取消"
     exit 0
   fi
-  rm -rf "$SKILL_DST"
+  # 安全边界校验：确保目标路径在 $OC 内，防止 OPENCLAW_STATE_DIR 异常时误删
+  case "$SKILL_DST" in
+    "$OC"/*)
+      rm -rf "$SKILL_DST"
+      ;;
+    *)
+      echo -e "${RED}❌ 安全中断: 目标路径 $SKILL_DST 不在 $OC 下，已拒绝删除${NC}"
+      exit 1
+      ;;
+  esac
 fi
 
 # ═══════════════════════════════════════════════

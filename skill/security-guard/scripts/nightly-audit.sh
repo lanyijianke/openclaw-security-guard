@@ -6,12 +6,23 @@
 set -euo pipefail
 export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
 
+# ────────────── 安全默认值 ──────────────
+# 限制新建文件权限：仅属主可读写
+umask 077
+
 # ────────────── 环境检测 ──────────────
 
 OS_TYPE="$(uname -s)"
 OC="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
-REPORT_DIR="/tmp/openclaw/security-reports"
-mkdir -p "$REPORT_DIR"
+
+# 报告目录：优先用 mktemp 防符号链接劫持，回退到固定路径 + 权限加固
+if command -v mktemp >/dev/null 2>&1; then
+  REPORT_DIR=$(mktemp -d "${TMPDIR:-/tmp}/openclaw-audit-XXXXXXXXXX")
+else
+  REPORT_DIR="/tmp/openclaw/security-reports"
+  mkdir -p "$REPORT_DIR"
+  chmod 700 "$REPORT_DIR"
+fi
 
 DATE_STR=$(date +%F)
 REPORT_FILE="$REPORT_DIR/report-$DATE_STR.txt"
@@ -78,17 +89,13 @@ SUMMARY+="2. 进程网络: ✅ 已采集监听端口与进程快照\n"
 # ────────────── 3/13: 敏感目录变更 ──────────────
 
 echo -e "\n[3/13] 敏感目录近 24h 变更文件数" >> "$REPORT_FILE"
-SCAN_DIRS="$OC"
-[ -d /etc ] && SCAN_DIRS="$SCAN_DIRS /etc"
-[ -d "$HOME/.ssh" ] && SCAN_DIRS="$SCAN_DIRS $HOME/.ssh"
-[ -d "$HOME/.gnupg" ] && SCAN_DIRS="$SCAN_DIRS $HOME/.gnupg"
-[ -d /usr/local/bin ] && SCAN_DIRS="$SCAN_DIRS /usr/local/bin"
+SCAN_DIR_LIST=("$OC")
+[ -d /etc ] && SCAN_DIR_LIST+=(/etc)
+[ -d "$HOME/.ssh" ] && SCAN_DIR_LIST+=("$HOME/.ssh")
+[ -d "$HOME/.gnupg" ] && SCAN_DIR_LIST+=("$HOME/.gnupg")
+[ -d /usr/local/bin ] && SCAN_DIR_LIST+=(/usr/local/bin)
 
-if [ "$OS_TYPE" = "Darwin" ]; then
-  MOD_FILES=$(find $SCAN_DIRS -type f -mtime -1 2>/dev/null | wc -l | xargs)
-else
-  MOD_FILES=$(find $SCAN_DIRS -type f -mtime -1 2>/dev/null | wc -l | xargs)
-fi
+MOD_FILES=$(find "${SCAN_DIR_LIST[@]}" -type f -mtime -1 2>/dev/null | wc -l | xargs)
 echo "Total modified files: $MOD_FILES" >> "$REPORT_FILE"
 SUMMARY+="3. 目录变更: ✅ $MOD_FILES 个文件变更\n"
 
@@ -189,12 +196,8 @@ SUMMARY+="8. 黄线审计: ✅ sudo记录=$SUDO_COUNT, memory记录=$MEM_COUNT\n
 
 echo -e "\n[9/13] 磁盘使用率与最近大文件" >> "$REPORT_FILE"
 DISK_USAGE=$(df -h / | awk 'NR==2 {print $5}')
-if [ "$OS_TYPE" = "Darwin" ]; then
-  LARGE_FILES=$(find "$HOME" -type f -size +100M -mtime -1 2>/dev/null | wc -l | xargs)
-else
-  LARGE_FILES=$(find / -xdev -type f -size +100M -mtime -1 2>/dev/null | wc -l | xargs)
-fi
-echo "Disk Usage: $DISK_USAGE, Large Files (>100M): $LARGE_FILES" >> "$REPORT_FILE"
+LARGE_FILES=$(find "$HOME" -maxdepth 4 -type f -size +100M -mtime -1 2>/dev/null | wc -l | xargs)
+echo "Disk Usage: $DISK_USAGE, Large Files (>100M in \$HOME): $LARGE_FILES" >> "$REPORT_FILE"
 SUMMARY+="9. 磁盘容量: ✅ 根分区占用 $DISK_USAGE, 新增 $LARGE_FILES 个大文件\n"
 
 # ────────────── 10/13: Gateway 环境变量 ──────────────
@@ -271,20 +274,28 @@ fi
 echo -e "\n[13/13] 大脑灾备 (Git Backup)" >> "$REPORT_FILE"
 BACKUP_STATUS=""
 if [ -d "$OC/.git" ]; then
-  (
-    cd "$OC" || exit 1
-    git add . >> "$REPORT_FILE" 2>&1 || true
-    if git diff --cached --quiet; then
-      echo "No staged changes" >> "$REPORT_FILE"
-      BACKUP_STATUS="skip"
-    else
-      if git commit -m "🛡️ Nightly brain backup ($DATE_STR)" >> "$REPORT_FILE" 2>&1 && git push origin main >> "$REPORT_FILE" 2>&1; then
-        BACKUP_STATUS="ok"
+  # 安全校验：必须存在 .gitignore 才允许自动备份，防止推送凭证
+  if [ ! -f "$OC/.gitignore" ]; then
+    echo "ABORTED: $OC/.gitignore not found — refusing to auto-backup without exclusion rules" >> "$REPORT_FILE"
+    BACKUP_STATUS="no_gitignore"
+  else
+    # 使用 { } 而非 ( ) 以保留 BACKUP_STATUS 变量
+    cd "$OC" || { BACKUP_STATUS="fail"; }
+    if [ -z "$BACKUP_STATUS" ]; then
+      git add . >> "$REPORT_FILE" 2>&1 || true
+      if git diff --cached --quiet; then
+        echo "No staged changes" >> "$REPORT_FILE"
+        BACKUP_STATUS="skip"
       else
-        BACKUP_STATUS="fail"
+        if git commit -m "🛡️ Nightly brain backup ($DATE_STR)" >> "$REPORT_FILE" 2>&1 && git push origin main >> "$REPORT_FILE" 2>&1; then
+          BACKUP_STATUS="ok"
+        else
+          BACKUP_STATUS="fail"
+        fi
       fi
+      cd - > /dev/null 2>&1 || true
     fi
-  )
+  fi
 else
   BACKUP_STATUS="nogit"
 fi
@@ -293,6 +304,7 @@ case "$BACKUP_STATUS" in
   ok)   SUMMARY+="13. 灾备备份: ✅ 已自动推送至远端仓库\n" ;;
   skip) SUMMARY+="13. 灾备备份: ✅ 无新变更，跳过推送\n" ;;
   nogit) append_warn "13. 灾备备份: ⚠️ 未初始化Git仓库，已跳过" ;;
+  no_gitignore) append_warn "13. 灾备备份: ❌ 缺少 .gitignore，已中止自动备份（防止推送凭证）" ;;
   *)    append_warn "13. 灾备备份: ⚠️ 推送失败（不影响本次巡检）" ;;
 esac
 
