@@ -22,6 +22,8 @@ if command -v realpath >/dev/null 2>&1; then
     echo "WARNING: OC path contains symlink: $OC -> $OC_REAL" >&2
     OC="$OC_REAL"
   fi
+else
+  echo "WARNING: realpath not available, symlink protection degraded" >&2
 fi
 
 # 报告目录：优先用 mktemp 防符号链接劫持
@@ -210,6 +212,7 @@ fi
 MEM_FILE="$OC/workspace/memory/$DATE_STR.md"
 MEM_COUNT=$(grep -i "sudo" "$MEM_FILE" 2>/dev/null | wc -l | xargs)
 echo "Sudo Logs(recent): $SUDO_COUNT, Memory Logs(today): $MEM_COUNT" >> "$REPORT_FILE"
+echo "NOTE: count-only comparison is coarse; timestamps/commands not cross-referenced" >> "$REPORT_FILE"
 if [ "$SUDO_COUNT" -gt 0 ] && [ "$MEM_COUNT" -eq 0 ]; then
   append_warn "8. 黄线审计: ⚠️ 发现 ${SUDO_COUNT} 次 sudo 但 memory 无记录（可能存在未登记操作）"
 elif [ "$SUDO_COUNT" -ne "$MEM_COUNT" ]; then

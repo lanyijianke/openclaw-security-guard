@@ -42,6 +42,8 @@ if command -v realpath >/dev/null 2>&1; then
     echo -e "${YELLOW}   将使用解析后的真实路径${NC}"
     OC="$OC_REAL"
   fi
+else
+  echo -e "${YELLOW}⚠️  realpath 不可用，无法校验符号链接。安装 coreutils 可获得更强的路径保护${NC}"
 fi
 
 SKILL_DST="$OC/workspace/skills/security-guard"
@@ -145,12 +147,13 @@ elif [ -f "$AGENTS_FILE" ] && grep -q "$MARKER" "$AGENTS_FILE" 2>/dev/null; then
   echo -e "   ${RED}⚠️  AGENTS.md 包含开始标记但缺少结束标记，规则可能不完整${NC}"
   echo -e "   ${DIM}建议先删除 AGENTS.md 中 security-guard 部分，再重新运行本脚本${NC}"
 else
-  # 透明展示即将写入的内容
-  echo -e "${DIM}   以下安全规则将被追加到 AGENTS.md:${NC}"
+  # 展示规则摘要（完整规则见 redlines.md 或脚本源码）
+  echo -e "${DIM}   以下是将追加到 AGENTS.md 的规则摘要：${NC}"
+  echo -e "${DIM}   （完整规则文本见 skill/security-guard/references/redlines.md）${NC}"
   echo -e "${DIM}   ─────────────────────────────────${NC}"
   echo -e "${DIM}   • 红线命令拦截（破坏性操作、认证篡改、外发敏感数据、反弹Shell、代码注入等）${NC}"
   echo -e "${DIM}   • 黄线操作记录（sudo、docker run、系统服务变更等）${NC}"
-  echo -e "${DIM}   • 提示词注入防护（盲从外部指令、角色扮演越狱、编码混淆注入等）${NC}"
+  echo -e "${DIM}   • 提示词注入防护（6大类：直接注入、间接注入、编码混淆、社工、多轮攻击、敏感数据）${NC}"
   echo -e "${DIM}   • Skill/MCP 安装审计协议${NC}"
   echo -e "${DIM}   ─────────────────────────────────${NC}"
   echo ""

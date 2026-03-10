@@ -27,6 +27,8 @@ if command -v realpath >/dev/null 2>&1; then
     echo -e "${YELLOW}⚠️  OC 路径包含符号链接: $OC -> $OC_REAL${NC}"
     OC="$OC_REAL"
   fi
+else
+  echo -e "${YELLOW}⚠️  realpath 不可用，符号链接保护降级${NC}"
 fi
 
 ok() { echo -e "  ${GREEN}✅${NC} $1"; }

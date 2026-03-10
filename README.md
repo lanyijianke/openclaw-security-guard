@@ -31,14 +31,16 @@
 
 ## What Does It Do?
 
-After installation, your 🦞 automatically gains these protections:
+After installation, your 🧡 gains these behavioral rules via AGENTS.md system prompt:
 
-| Protection | Description |
+> **⚠️ Important**: These are AI behavioral rules, not hard technical controls. Their effectiveness depends on the AI model's ability to interpret and follow them. Use a capable model (Gemini / Opus / GPT) for best results.
+
+| Protection | How it works |
 |------------|-------------|
-| **Red-line interception** | Dangerous commands (`rm -rf /`, credential exfil, reverse shells) are paused and require human confirmation |
-| **Prompt injection defense** | Rejects role-play jailbreaks, encoded command injection, and hidden instructions in external docs |
-| **Skill/MCP auditing** | Auto-scans new Skills for malicious code before use |
-| **Operation logging** | Sensitive operations (sudo, docker, cron) are logged to memory |
+| **Red-line interception** | Rules instruct the AI to pause and ask for human confirmation before dangerous commands |
+| **Prompt injection defense** | Rules instruct the AI to reject jailbreaks, encoded injection, and hidden instructions |
+| **Skill/MCP audit protocol** | Rules instruct the AI to scan new Skills before use (requires AI compliance) |
+| **Operation logging** | Rules instruct the AI to log sensitive operations to memory |
 
 ## Install
 
@@ -64,7 +66,7 @@ The installer does two things (both require your confirmation):
 1. **Installs the Skill** → `~/.openclaw/workspace/skills/security-guard/`
 2. **Injects security rules into AGENTS.md** → so your 🦞 is protected from the very first conversation
 
-> **Full transparency**: the script shows you exactly what will be written to AGENTS.md before asking for confirmation. You can remove the rules at any time by deleting the marked section.
+> **Transparency**: the script shows a summary of the rules before writing. You can review the full rule text in `skill/security-guard/references/redlines.md` or in the script source. Rules can be removed at any time by deleting the marked section.
 
 <details>
 <summary>Manual install</summary>
@@ -117,7 +119,7 @@ rm -rf ~/.openclaw/workspace/skills/security-guard
 │  (loaded when you ask for security operations)       │
 │                                                      │
 │  • Full defense matrix deployment                    │
-│  • Nightly automated 13-point audit                  │
+│  • Nightly automated 12-point audit                  │
 │  • File integrity monitoring                         │
 │  • DLP scanning (private keys / mnemonics)          │
 └─────────────────────────────────────────────────────┘
@@ -137,14 +139,16 @@ rm -rf ~/.openclaw/workspace/skills/security-guard
 
 ## 它做了什么？
 
-安装后，你的🦞自动获得以下防护：
+安装后，你的🧡会通过 AGENTS.md 系统提示词获得以下行为规则：
 
-| 防护能力 | 说明 |
+> **⚠️ 重要提示**：这些是 AI 行为规则，不是硬性技术控制。它们的有效性取决于 AI 模型的理解和遵循能力。建议使用推理能力较强的模型（Gemini / Opus / GPT）。
+
+| 防护能力 | 工作方式 |
 |---------|------|
-| **红线命令拦截** | 危险命令（`rm -rf /`、外发凭证、反弹 Shell 等）自动暂停，必须人类确认 |
-| **提示词注入防护** | 拒绝角色扮演越狱、编码混淆注入、外部文档隐藏指令 |
-| **Skill/MCP 审计** | 安装新 Skill 时自动扫描恶意代码 |
-| **敏感操作记录** | sudo、docker、cron 等操作强制记录到 memory |
+| **红线命令拦截** | 规则指示 AI 在执行危险命令前暂停并请求人类确认 |
+| **提示词注入防护** | 规则指示 AI 拒绝角色扮演越狱、编码混淆注入、外部文档隐藏指令 |
+| **Skill/MCP 审计协议** | 规则指示 AI 在使用新 Skill 前进行审计（需要 AI 遵循） |
+| **敏感操作记录** | 规则指示 AI 将 sudo、docker、cron 等操作记录到 memory |
 
 ## 安装
 
@@ -159,7 +163,7 @@ bash setup.sh
 1. **安装 Skill** → `~/.openclaw/workspace/skills/security-guard/`
 2. **注入安全规则到 AGENTS.md** → 让🦞从第一次对话起就有安全防护
 
-> **完全透明**：脚本会在写入前展示将注入 AGENTS.md 的具体内容，需要你确认才会执行。你可以随时通过删除标记段落来移除这些规则。
+> **透明度**：脚本会在写入前展示规则摘要。完整规则内容可在 `skill/security-guard/references/redlines.md` 或脚本源码中查看。你可以随时通过删除标记段落来移除这些规则。
 
 <details>
 <summary>其他安装方式</summary>
@@ -213,7 +217,7 @@ rm -rf ~/.openclaw/workspace/skills/security-guard
 │  （需要时加载，提供更完整的安全操作能力）                  │
 │                                                      │
 │  • 完整防御矩阵部署                                    │
-│  • 每晚自动巡检 13 项指标                              │
+│  • 每晚自动巡检 12 项指标                              │
 │  • 文件完整性监控                                      │
 │  • DLP 扫描（私钥 / 助记词泄露检测）                    │
 └─────────────────────────────────────────────────────┘
@@ -221,8 +225,10 @@ rm -rf ~/.openclaw/workspace/skills/security-guard
 
 ## ⚠️ 免责声明
 
+- **这是行为层防护，不是硬性拦截**：所有规则通过 AI 系统提示词实现，依赖模型的理解和遵循能力
+- 如果模型被绕过、忽略规则或能力不足，这些保护可能失效
 - 安全是复杂的系统工程，本工具不能让 OpenClaw "完全安全"
-- 行为层自检依赖 AI 模型自主判断，建议使用推理能力更强的模型
+- 建议使用推理能力更强的模型（Gemini / Opus / GPT）
 - 最终安全判断在使用者自己
 - 作者不对因 AI 模型误执行所造成的任何损失承担责任
 
