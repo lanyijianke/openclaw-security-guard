@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Security Guard — 每晚全面安全巡检脚本 (跨平台版)
 # 基于 OpenClaw 极简安全实践指南 v2.7，覆盖 12 项核心指标
-# 支持 Linux 和 macOS，灾备失败不阻断巡检汇报
+# 支持 Linux 和 macOS
 
 set -euo pipefail
 export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
